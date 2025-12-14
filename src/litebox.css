@@ -1,0 +1,119 @@
+:root {
+  --litebox-overlay-bg: rgba(0, 0, 0, 0.8);
+  --litebox-image-margin: 2rem;
+}
+
+.litebox {
+  display: none;
+  position: fixed;
+  isolation: isolate;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--litebox-overlay-bg, rgba(0, 0, 0, 0.8));
+  font-size: 16px;
+
+  &, * {
+    box-sizing: border-box;
+  }
+
+  &.litebox-open {
+    display: block;
+  }
+
+  /*
+   * Set up a loader that's effectively always behind the images
+   * this way we avoid needing to add logic for hiding/showing the loader,
+   * it will automatically show when necessary.
+   */
+  & .litebox-loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+  }
+
+  & .litebox-content {
+    position: relative;
+    padding-top: 3rem;
+
+    img {
+      max-width:  calc(100% - var(--litebox-image-margin, 2rem) * 2);
+      max-height: calc(100% - var(--litebox-image-margin, 2rem) * 2);
+      margin: var(--litebox-image-margin, 2rem);
+    }
+
+    .litebox-description {
+      color: white;
+      text-align: center;
+      margin-top: 1rem;
+      font-size: 1rem;
+    }
+    ul, li {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    ul {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1rem;
+      /* flex-wrap: nowrap; */
+      max-width: max-content;
+    }
+    li {
+      width: 100vw;
+      height: 100vh;
+      display: none;
+
+      &.active {
+        display: block;
+      }
+    }
+  }
+
+  & .litebox-controls {
+    position: absolute;
+    top: 1rem;
+    left: 0;
+    display: flex;
+    gap: 0.5rem;
+    padding: 0 2rem;
+    width: 100vw;
+
+    button {
+      background: rgba(0, 0, 0, 0.5);
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 0.25rem;
+      display: inline-flex;
+      align-items: center;
+
+
+      & svg {
+        stroke: white;
+        fill: white;
+      }
+      &.litebox-next svg {
+        transform: rotate(180deg);
+      }
+    }
+
+    .litebox-index-display {
+      color: white;
+      font-size: 1rem;
+      align-self: center;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 0.7rem 1rem;
+      border-radius: 0.25rem;
+      margin-right: auto;
+    }
+  }
+}
