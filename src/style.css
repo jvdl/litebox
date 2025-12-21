@@ -6,7 +6,7 @@
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
-  background-color: rgb(44, 44, 97);
+  /* background-color: rgb(44, 44, 97); */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -63,7 +63,7 @@ h1 {
     list-style: none;
     padding: 0;
     margin: 0;
-    display: grid;
+    display: grid-lanes;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
   }
@@ -80,5 +80,26 @@ h1 {
     width: 100%;
     height: auto;
     display: block;
+  }
+}
+
+nav {
+  margin-bottom: 2rem;
+  position: fixed;
+  top: 10px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  a {
+    margin: 0 1rem;
+    font-size: 1.2rem;
+
+    &:hover {
+      text-decoration: underline;
+    }
+    &.active {
+      color: rgba(255, 255, 255, 0.87);
+      text-decoration: underline;
+    }
   }
 }

@@ -1,25 +1,16 @@
 :root {
-  --litebox-overlay-bg: rgba(0, 0, 0, 0.8);
+  --litebox-overlay-bg: rgba(0, 0, 0, 0.6);
   --litebox-image-margin: 2rem;
 }
 
 .litebox {
-  display: none;
-  position: fixed;
-  isolation: isolate;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--litebox-overlay-bg, rgba(0, 0, 0, 0.8));
+  place-items: center;
+  box-sizing: border-box;
   font-size: 16px;
 
-  &, * {
-    box-sizing: border-box;
-  }
-
-  &.litebox-open {
-    display: block;
+  &:popover-open {
+  display: grid;
+    background-color: var(--litebox-overlay-bg, rgba(0, 0, 0, 0.8));
   }
 
   /*
@@ -38,12 +29,15 @@
 
   & .litebox-content {
     position: relative;
-    padding-top: 3rem;
 
     img {
-      max-width:  calc(100% - var(--litebox-image-margin, 2rem) * 2);
-      max-height: calc(100% - var(--litebox-image-margin, 2rem) * 2);
-      margin: var(--litebox-image-margin, 2rem);
+      --margin-size: var(--litebox-image-margin, 2rem) * 2;
+      --max-vw: calc(100vw - var(--margin-size));
+      --max-vh: calc(100vh - var(--margin-size));
+
+      max-width: min(var(--max-vw), 100%);
+      max-height: min(var(--max-vh), 100%);
+      margin: auto;
     }
 
     .litebox-description {
@@ -59,31 +53,29 @@
     }
     ul {
       display: flex;
-      justify-content: center;
-      gap: 1rem;
-      margin-top: 1rem;
-      /* flex-wrap: nowrap; */
-      max-width: max-content;
     }
     li {
       width: 100vw;
       height: 100vh;
       display: none;
+      align-content: center;
+      justify-content: center;;
 
       &.active {
-        display: block;
+        display: grid;
       }
     }
   }
 
   & .litebox-controls {
-    position: absolute;
+    position: fixed;
     top: 1rem;
     left: 0;
     display: flex;
     gap: 0.5rem;
     padding: 0 2rem;
     width: 100vw;
+    box-sizing: border-box;
 
     button {
       background: rgba(0, 0, 0, 0.5);

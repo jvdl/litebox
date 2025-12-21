@@ -24,12 +24,12 @@ export type LiteboxOptions = {
    */
   description?: ImageDescriptionSelector;
   /**
-   * Whether to destroy the litebox instance when it is closed. This will remove the litebox from the DOM and free up memory.
+   * Whether to clean up the litebox markup when it is closed. This will remove the litebox from the DOM and free up memory.
    * If a litebox will be opened multiple times, either with the same gallery or a different one, it is better to keep it in the DOM.
    *
    * @default false
    */
-  destroyOnClose?: boolean;
+  cleanupOnClose?: boolean;
   /**
    * Whether to lazy render the litebox container itself only when the litebox is opened for the first time.
    * This can help with initial page load performance if the litebox is not used immediately, or you have multiple galleries on the page.
@@ -47,7 +47,6 @@ type LiteboxImage = {
 const defaultOptions: LiteboxOptions = {
   imageSource: 'img',
   description: 'alt',
-  destroyOnClose: false,
   lazyRender: true,
 };
 
@@ -56,9 +55,60 @@ const uniqueId = (() => {
   return ++idCounter;
 });
 
-
+/**
+ * Type guard to check if an element is a HTMLImageElement
+ * @param el
+ * @returns
+ */
 function isImageElement(el: unknown): el is HTMLImageElement {
   return el instanceof HTMLImageElement;
+}
+
+
+/**
+ * Litebox is a lightweight image gallery lightbox that shows images in an overlay.
+ *
+ * Import it via `import { litebox } from 'litebox'` and initialize it on a gallery element.
+ *
+ * A "gallery" is any container element that contains one or more `<img>` elements.
+ * The large image source can be specified via the `imageSource` option, which can be either `img` or `a`.
+ *
+ * @param elementOrSelector - The gallery element or a selector string to find the gallery element
+ * @param options - Litebox options. See {@link LiteboxOptions}
+ *
+ * @example // Initialize litebox on a gallery element
+ * litebox('.my-gallery', { imageSource: 'a', description: 'alt' });
+ * @example // Initialize litebox on a specific element
+ * const galleryEl = document.querySelector('.my-gallery');
+ * litebox(galleryEl, { imageSource: 'img', description: 'title' });
+ * @example // Instantiate multiple litebox galleries on the same page
+ * const lb1 = litebox('.gallery-1', { imageSource: 'a' });
+ * const lb2 = litebox('.gallery-2', { imageSource: 'img' });
+ * @example // Destroy a litebox instance when no longer needed
+ * const lb = litebox('.my-gallery', { imageSource: 'a' });
+ * // later...
+ * lb.destroy();
+ */
+const litebox = (elementOrSelector: HTMLElement | string, options: LiteboxOptions = defaultOptions): Litebox => {
+  let el: HTMLElement | null;
+  // console.log('Setting up litebox', elementOrSelector, options);
+  if (typeof elementOrSelector === 'string') {
+    el = document.querySelector<HTMLElement>(elementOrSelector);
+    if (el === null) {
+      throw new Error(`Litebox: No element found for selector ${elementOrSelector}`);
+    }
+  } else {
+    el = elementOrSelector;
+  }
+
+  if (Litebox.register.has(elementOrSelector)) {
+    console.log('Litebox instance already exists for element, returning existing instance', el);
+    return Litebox.register.get(el)!;
+  }
+
+  const liteboxInstance = new Litebox(el, { ...defaultOptions, ...options });
+  Litebox.register.set(el, liteboxInstance);
+  return liteboxInstance;
 }
 
 class Litebox {
@@ -68,51 +118,61 @@ class Litebox {
   private contentEl: HTMLElement | null = null;
   private indexDisplay: HTMLElement | null = null;
 
+  /**
+   * The registry of Litebox instances, keyed by the gallery element or selector.
+   * This allows multiple galleries on the same page to have their own Litebox instance,
+   * but prevents multiple instantiations against the same element(s).
+   */
+  static register = new Map<HTMLElement | string, Litebox>();
+
   constructor(public el: HTMLElement, public options: LiteboxOptions = defaultOptions) {
     this.init();
   }
 
   private init() {
     this.images = this.getImagesFromDOM();
+    console.log(this.images);
     if (this.images && this.images.length > 0) {
-      console.log('Litebox images found:', this.images);
+      // console.log('Litebox images found:', this.images);
       // Render immediately if the user wants the gallery to be prerendered.
       if (this.options.lazyRender === false) {
         this.render();
       }
 
       // listen for clicks on the gallery element to open the litebox
-      this.el.addEventListener('click', (event) => {
-        const targetEl = event.target;
-        if (!isImageElement(targetEl)) {
-          return;
-        }
-        event.preventDefault();
-        // find the index of the clicked image
-        const clickedItemIndex = this.images?.findIndex((image, index) => {
-          return imageSource(targetEl, this.options.imageSource) === image.src
-        });
-console.log("clicked item index", clickedItemIndex);
-        // if the container isn't not yet rendered, do so now.
-        if (!this.container || !document.body.contains(this.container!)) {
-          this.render(clickedItemIndex);
-        }
-        // if we are reusing an existing litebox, check if it's present and render the images in it for the current gallery.
-        if (this.options.destroyOnClose === false && this.container && document.body.contains(this.container)) {
-          this.renderImages(clickedItemIndex);
-        }
-        this.goto(clickedItemIndex ?? 0);
-        this.openLitebox();
-      });
+      this.el.addEventListener('click', this.onGalleryClick);
     }
   }
 
+  private onGalleryClick = (event: MouseEvent) => {
+    const targetEl = event.target;
+    if (!isImageElement(targetEl)) {
+      return;
+    }
+    event.preventDefault();
+    // find the index of the clicked image
+    const clickedItemIndex = this.images?.findIndex((image, index) => {
+      return imageElSource(targetEl, this.options.imageSource) === image.src
+    });
+// console.log("clicked item index", clickedItemIndex);
+    // if the container isn't not yet rendered, do so now.
+    if (!this.container || !document.body.contains(this.container!)) {
+      this.render(clickedItemIndex);
+    }
+    // if we are reusing an existing litebox, check if it's present and render the images in it for the current gallery.
+    if (this.options.cleanupOnClose === false && this.container && document.body.contains(this.container)) {
+      this.renderImages(clickedItemIndex);
+    }
+    this.goto(clickedItemIndex ?? 0);
+    this.openLitebox();
+  }
+
   private render(initialActiveIndex?: number) {
-    console.log('Rendering litebox with images:', this.images);
+    // console.log('Rendering litebox with images:', this.images);
     if (!this.images || !this.images.length) {
       return;
     }
-    this.container = buildLitebox(this.images);
+    this.container = buildLitebox();
     this.contentEl = this.container.querySelector('.litebox-content');
     this.indexDisplay = this.container.querySelector('.litebox-index-display');
 
@@ -132,18 +192,18 @@ console.log("clicked item index", clickedItemIndex);
     if (!this.container) {
       throw new Error("Litebox container not initialized");
     };
-    this.container.classList.add('litebox-open');
+    this.container.showPopover();
   }
 
   private closeLitebox() {
     if (!this.container) {
       throw new Error("Litebox container not initialized");
     };
-    this.container.classList.remove('litebox-open');
+    this.container.hidePopover();
   }
 
   private renderImages(initialActiveIndex?: number) {
-    console.log("Rendering images for litebox at index", initialActiveIndex);
+    // console.log("Rendering images for litebox at index", initialActiveIndex);
     if (!this.container) {
       throw new Error("Litebox container not initialized");
     };
@@ -153,7 +213,7 @@ console.log("clicked item index", clickedItemIndex);
     }
     this.activeIndex = initialActiveIndex ?? 0;
     const imagesMarkup = buildImagesMarkup(this.images, this.activeIndex);
-    console.log(imagesMarkup);
+    // console.log(imagesMarkup);
     this.contentEl?.replaceChildren(imagesMarkup);
     this.updateIndexDisplay();
   }
@@ -170,17 +230,41 @@ console.log("clicked item index", clickedItemIndex);
 
     closeBtn?.addEventListener('click', () => {
       this.closeLitebox();
-      if (this.options.destroyOnClose === true) {
-        setTimeout(() => {
-          this.destroy();
-        });
+      if (this.options.cleanupOnClose === true) {
+        setTimeout(this.cleanup);
       }
     });
     nextBtn?.addEventListener('click', () => this.next());
     prevBtn?.addEventListener('click', () => this.prev());
+
+    this.container.addEventListener("keydown", (event: KeyboardEvent) => {
+      if (event.key === "ArrowRight") {
+        this.next();
+      } else if (event.key === "ArrowLeft") {
+        this.prev();
+      } else if (event.key === "Escape") {
+        this.closeLitebox();
+        if (this.options.cleanupOnClose === true) {
+          setTimeout(this.cleanup);
+        }
+      }
+    });
   }
 
-  private destroy() {
+  /**
+   * Destroy the litebox instance and clean up event listeners and DOM elements.
+   */
+  public destroy = () => {
+    console.log('Destroying litebox instance');
+    // stop listening for clicks on the gallery element
+    this.el.removeEventListener('click', this.onGalleryClick);
+    this.cleanup();
+  }
+
+  /**
+   * Clean up the litebox markup from the DOM.
+   */
+  public cleanup = () => {
     // Remove the container. This will free up DOM memory and event listeners
     if (this.container) {
       this.container.remove();
@@ -188,18 +272,27 @@ console.log("clicked item index", clickedItemIndex);
     }
   }
 
-  public next() {
-    console.log('Next image');
+  /**
+   * Show the next image in the litebox gallery.
+   */
+  public next = () => {
     this.activeIndex = Math.min(this.activeIndex + 1, (this.images?.length ?? 1) - 1);
     this.goto(this.activeIndex);
   }
-  public prev() {
-    console.log('Next image');
+
+  /**
+   * Show the previous image in the litebox gallery.
+   */
+  public prev = () => {
     this.activeIndex = Math.max(this.activeIndex - 1, 0);
     this.goto(this.activeIndex);
   }
-  public goto(index: number) {
-    console.log('Go to image', index);
+
+  /**
+   * Go to a specific image index in the litebox gallery and update the display.
+   * @param index
+   */
+  public goto = (index: number) => {
     if (!this.container) {
       throw new Error("Litebox container not initialized");
     };
@@ -207,13 +300,15 @@ console.log("clicked item index", clickedItemIndex);
     const currentActiveItem = this.container.querySelector('.litebox-item.active');
     currentActiveItem?.classList.remove('active');
     // make the new active image active
-    const newActiveItem = this.container.querySelector(`.litebox-item:nth-child(${this.activeIndex + 1})`); // nth-child is 1-based
-
+    const newActiveItem = this.container.querySelector(`.litebox-item:nth-child(${index + 1})`); // nth-child is 1-based
     newActiveItem?.classList.add('active');
     // update index display
     this.updateIndexDisplay();
   }
 
+  /**
+   * Update the index display element with the current active index and total number of images.
+   */
   private updateIndexDisplay() {
     if (this.indexDisplay && this.images) {
       this.indexDisplay.textContent = `${this.activeIndex + 1} / ${this.images.length}`;
@@ -222,22 +317,17 @@ console.log("clicked item index", clickedItemIndex);
 }
 
 
-const litebox = (elementOrSelector: HTMLElement | string, options: LiteboxOptions = defaultOptions) => {
-  let el: HTMLElement | null;
-  console.log('Setting up litebox', elementOrSelector, options);
-  if (typeof elementOrSelector === 'string') {
-    el = document.querySelector<HTMLElement>(elementOrSelector);
-    if (el === null) {
-      throw new Error(`Litebox: No element found for selector ${elementOrSelector}`);
-    }
-  } else {
-    el = elementOrSelector;
-  }
-
-  return new Litebox(el, options);
-}
-
-const imageSource = (el: HTMLImageElement, srcSelector: ImageSourceSelector): string | null => {
+/**
+ * Get the image source URL from a given image element based on the source selector.
+ *
+ * If the source selector is `img` the src attribute of the image is used.
+ * If the source selector is `a`, the closest ancestor link's href attribute is used.
+ *
+ * @param el
+ * @param srcSelector
+ * @returns
+ */
+const imageElSource = (el: HTMLImageElement, srcSelector: ImageSourceSelector): string | null => {
   const largeSourceEl = el.closest(srcSelector);
   let src = el.getAttribute('src');
   if (!largeSourceEl) return null;
@@ -253,14 +343,18 @@ const getImages = (el: HTMLElement, srcSelector: ImageSourceSelector, descriptio
   if (images.length === 0) {
     return null;
   }
+  console.log(descriptionSelector);
   return validLiteboxImages(Array.from(images).map((img) => {
-    const src = imageSource(img, srcSelector);
-    if (!src) return null;
+    const src = imageElSource(img, srcSelector);
+    if (!src) {
+      return null;
+    }
+
     let description: string | undefined;
     if (descriptionSelector === "alt" || descriptionSelector === "title") {
       description = img.getAttribute(descriptionSelector) ?? undefined;
     }
-    // if (img.getAttribute(descriptionSelector) || undefined : undefined;
+
     return {
       src,
       description
@@ -274,43 +368,46 @@ const validLiteboxImages = (lbImages: (LiteboxImage | null)[]): LiteboxImage[] =
 }
 
 
+const svgLoader = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><radialGradient id="a11" cx=".66" fx=".66" cy=".3125" fy=".3125" gradientTransform="scale(1.5)"><stop offset="0" stop-color="#FFFFFF"></stop><stop offset=".3" stop-color="#FFFFFF" stop-opacity=".9"></stop><stop offset=".6" stop-color="#FFFFFF" stop-opacity=".6"></stop><stop offset=".8" stop-color="#FFFFFF" stop-opacity=".3"></stop><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"></stop></radialGradient><circle transform-origin="center" fill="none" stroke="url(#a11)" stroke-width="14" stroke-linecap="round" stroke-dasharray="200 1000" stroke-dashoffset="0" cx="100" cy="100" r="70"><animateTransform type="rotate" attributeName="transform" calcMode="spline" dur="2" values="360;0" keyTimes="0;1" keySplines="0 0 1 1" repeatCount="indefinite"></animateTransform></circle><circle transform-origin="center" fill="none" opacity=".2" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" cx="100" cy="100" r="70"></circle></svg>`;
+const svgCloseIcon = `<svg width="24px" height="24px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.7457 3.32851C20.3552 2.93798 19.722 2.93798 19.3315 3.32851L12.0371 10.6229L4.74275 3.32851C4.35223 2.93798 3.71906 2.93798 3.32854 3.32851C2.93801 3.71903 2.93801 4.3522 3.32854 4.74272L10.6229 12.0371L3.32856 19.3314C2.93803 19.722 2.93803 20.3551 3.32856 20.7457C3.71908 21.1362 4.35225 21.1362 4.74277 20.7457L12.0371 13.4513L19.3315 20.7457C19.722 21.1362 20.3552 21.1362 20.7457 20.7457C21.1362 20.3551 21.1362 19.722 20.7457 19.3315L13.4513 12.0371L20.7457 4.74272C21.1362 4.3522 21.1362 3.71903 20.7457 3.32851Z" /></svg>`;
+const svgLeftArrowIcon = `<svg width="24px" height="24px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 12H3M3 12L10 19M3 12L10 5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-/*
-<div class="litebox" id="litebox-1">
-  <div class="litebox-content">
-    <img class="litebox-image" src="https://picsum.photos/id/1010/1500/1000" alt="">
-    <div class="litebox-description">Foo bar baz</div>
-  </div>
-  <div class="litebox-controls">
-    <button class="litebox-prev">&#10094;</button>
-    <button class="litebox-next">&#10095;</button>
-    <button class="litebox-close">&times;</button>
-  </div>
-</div>
- */
-const loader = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><radialGradient id="a11" cx=".66" fx=".66" cy=".3125" fy=".3125" gradientTransform="scale(1.5)"><stop offset="0" stop-color="#FFFFFF"></stop><stop offset=".3" stop-color="#FFFFFF" stop-opacity=".9"></stop><stop offset=".6" stop-color="#FFFFFF" stop-opacity=".6"></stop><stop offset=".8" stop-color="#FFFFFF" stop-opacity=".3"></stop><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"></stop></radialGradient><circle transform-origin="center" fill="none" stroke="url(#a11)" stroke-width="14" stroke-linecap="round" stroke-dasharray="200 1000" stroke-dashoffset="0" cx="100" cy="100" r="70"><animateTransform type="rotate" attributeName="transform" calcMode="spline" dur="2" values="360;0" keyTimes="0;1" keySplines="0 0 1 1" repeatCount="indefinite"></animateTransform></circle><circle transform-origin="center" fill="none" opacity=".2" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round" cx="100" cy="100" r="70"></circle></svg>`;
-
-const buildLitebox = (images: LiteboxImage[]) => {
-  const container = createEl("div", "litebox", { id: `litebox-${uniqueId()}` });
-  const content = createEl("div", "litebox-content");
-  const loaderEl = createEl("div", "litebox-loader");
-  loaderEl.innerHTML = loader;
-  container.appendChild(loaderEl);
-  container.appendChild(content);
-  container.appendChild(buildControls());
-  return container;
+const buildLitebox = () => {
+  const markup = `
+    <div class="litebox" popover="manual" data-testid="litebox" id="litebox-${uniqueId()}">
+      <div class="litebox-loader">${svgLoader}</div>
+      <div class="litebox-content"><!-- Images will be injected here --></div>
+      <div class="litebox-controls">
+      <div class="litebox-index-display" aria-live="polite"></div>
+        <button class="litebox-prev" aria-label="Previous image">${svgLeftArrowIcon}</button>
+        <button class="litebox-next" aria-label="Next image">${svgLeftArrowIcon}</button>
+        <button class="litebox-close" aria-label="Close litebox">${svgCloseIcon}</button>
+      </div>
+    </div>
+  `
+  // const container = createEl("div", "litebox", { id: `litebox-${uniqueId()}`, 'data-testid': 'litebox' });
+  // container.setAttribute("popover", "manual");
+  // const content = createEl("div", "litebox-content");
+  // const loaderEl = createEl("div", "litebox-loader");
+  // loaderEl.innerHTML = svgLoader;
+  // container.appendChild(loaderEl);
+  // container.appendChild(content);
+  // container.appendChild(buildControls());
+  // return container;
+  const frag = document.createDocumentFragment();
+  frag.appendChild(document.createRange().createContextualFragment(markup));
+  console.log(frag);
+  return frag.firstElementChild as HTMLElement;
 }
 
-const closeIcon = `<svg width="24px" height="24px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20.7457 3.32851C20.3552 2.93798 19.722 2.93798 19.3315 3.32851L12.0371 10.6229L4.74275 3.32851C4.35223 2.93798 3.71906 2.93798 3.32854 3.32851C2.93801 3.71903 2.93801 4.3522 3.32854 4.74272L10.6229 12.0371L3.32856 19.3314C2.93803 19.722 2.93803 20.3551 3.32856 20.7457C3.71908 21.1362 4.35225 21.1362 4.74277 20.7457L12.0371 13.4513L19.3315 20.7457C19.722 21.1362 20.3552 21.1362 20.7457 20.7457C21.1362 20.3551 21.1362 19.722 20.7457 19.3315L13.4513 12.0371L20.7457 4.74272C21.1362 4.3522 21.1362 3.71903 20.7457 3.32851Z" /></svg>`;
-const leftArrowIcon = `<svg width="24px" height="24px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21 12H3M3 12L10 19M3 12L10 5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const buildControls = () => {
   const controls = createEl("div", "litebox-controls");
   const prevBtn = createEl("button", "litebox-prev");
-  prevBtn.innerHTML = leftArrowIcon;
+  prevBtn.innerHTML = svgLeftArrowIcon;
   const nextBtn = createEl("button", "litebox-next");
-  nextBtn.innerHTML = leftArrowIcon;
+  nextBtn.innerHTML = svgLeftArrowIcon;
   const closeBtn = createEl("button", "litebox-close");
-  closeBtn.innerHTML = closeIcon;
+  closeBtn.innerHTML = svgCloseIcon;
   const indexDisplay = createEl("div", "litebox-index-display");
 
   controls.appendChild(indexDisplay);
