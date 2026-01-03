@@ -26,9 +26,12 @@ a:hover {
 body {
   margin: 0;
   display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+}
+
+main {
+  margin: 4rem 0;
 }
 
 h1 {
@@ -42,7 +45,6 @@ h1 {
   padding: 2rem;
   text-align: center;
 }
-
 
 @media (prefers-color-scheme: light) {
   :root {
@@ -62,10 +64,11 @@ h1 {
   ul {
     list-style: none;
     padding: 0;
-    margin: 0;
+    margin: 0 auto;
     display: grid-lanes;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 1rem;
+    width: 640px;
   }
   li {
     border: 2px solid #444;
@@ -86,10 +89,14 @@ h1 {
 nav {
   margin-bottom: 2rem;
   position: fixed;
-  top: 10px;
+  top: 0;
   left: 0;
   width: 100%;
   text-align: center;
+  background: rgb(0 0 0 / 0.8);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.25);
+  box-shadow: 4px 0 10px rgb(0 0 0 / 0.5);
   a {
     margin: 0 1rem;
     font-size: 1.2rem;

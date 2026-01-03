@@ -21,16 +21,13 @@ export const App = () => {
     if (!link) {
       return;
     }
-    console.log("Navigating to", hash, link);
     setActiveLink(link);
   }
 
   useEffect(() => {
-    console.log("App mounted");
     window.addEventListener("hashchange", hashChange);
 
     return () => {
-      console.log("App unmounted");
       window.removeEventListener("hashchange", hashChange);
     }
   });
@@ -48,9 +45,11 @@ export const App = () => {
           </a>
         ))}
       </nav>
-      <React.Suspense fallback={<div>Loading...</div>}>
-        {activeComponent || <Basic />}
-      </React.Suspense>
+      <main>
+        <React.Suspense fallback={<div>Loading...</div>}>
+          {activeComponent || <Basic />}
+        </React.Suspense>
+      </main>
     </>
   );
 

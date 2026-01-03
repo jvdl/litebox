@@ -1,16 +1,55 @@
 :root {
-  --litebox-overlay-bg: rgba(0, 0, 0, 0.6);
-  --litebox-image-margin: 2rem;
+  --litebox-overlay-bg: light-dark(rgb(0 0 0 / 0.75), rgb(0 0 0 / 0.25));
+  --litebox-image-margin: 4rem;
+
+  --litebox-component-bg: light-dark(rgb(0 0 0 / 0.4), rgb(0 0 0 / 0.5));
+  --litebox-description-bg: light-dark(rgb(0 0 0 / 0.6), rgb(0 0 0 / 0.8));
+  --litebox-component-border-color: light-dark(rgb(255 255 255 / 0.25), rgb(255 255 255 / 0.15));
+  --litebox-component-border: 1px solid var(--litebox-component-border-color);
+  --litebox-component-border-radius: 0.25rem;
+  --litebox-component-text-color: white;
 }
 
 .litebox {
   place-items: center;
-  box-sizing: border-box;
   font-size: 16px;
 
+  &, * {
+    box-sizing: border-box;
+  }
+
+  button {
+    background: var(--litebox-component-bg);
+    border-radius: var(--litebox-component-border-radius);
+    border: var(--litebox-component-border);
+    color: var(--litebox-component-text-color);
+    font-size: 1.5rem;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+
+    & svg {
+      stroke: white;
+      fill: white;
+    }
+
+    &.small {
+      padding: 0.3rem 0.5rem;
+
+      svg {
+        width: 1rem;
+        height: 1rem;
+      }
+
+    }
+  }
+
+
   &:popover-open {
-  display: grid;
-    background-color: var(--litebox-overlay-bg, rgba(0, 0, 0, 0.8));
+    display: grid;
+    background-color: var(--litebox-overlay-bg, rgb(0 0 0 / 0.5));
+    backdrop-filter: blur(4px);
   }
 
   /*
@@ -29,23 +68,86 @@
 
   & .litebox-content {
     position: relative;
+    --margin-size: var(--litebox-image-margin, 2rem) * 2;
+    --max-vw: calc(100vw - var(--margin-size));
+    --max-vh: calc(100vh - var(--margin-size));
 
     img {
-      --margin-size: var(--litebox-image-margin, 2rem) * 2;
-      --max-vw: calc(100vw - var(--margin-size));
-      --max-vh: calc(100vh - var(--margin-size));
-
       max-width: min(var(--max-vw), 100%);
       max-height: min(var(--max-vh), 100%);
       margin: auto;
+      box-shadow: 0 0 20px rgb(0 0 0 / 0.7);
     }
 
     .litebox-description {
-      color: white;
-      text-align: center;
-      margin-top: 1rem;
+      margin-top: 2rem;
       font-size: 1rem;
+      max-width: calc(100% - 5rem);
+      width: 100%;
+      position: absolute;
+      bottom: 1rem;
     }
+
+    --animation-duration: 0.3s;
+
+    .litebox-description-content {
+      background: var(--litebox-description-bg);
+      border-radius: var(--litebox-component-border-radius);
+      border: var(--litebox-component-border);
+      color: var(--litebox-component-text-color);
+      text-align: center;
+      width: 100%;
+      padding: 1rem;
+      padding-right: 3rem;
+      transform-origin: 100% 100%;
+      transition: all var(--animation-duration);
+      overflow: hidden;
+
+      p {
+        margin: 0;
+      }
+    }
+
+    .litebox-description-close {
+      position: absolute;
+      right: 0;
+      height: 27px;
+      bottom: calc(100% - 27px);
+      border-top-left-radius: 0;
+      border-bottom-right-radius: 0;
+      border-top-color: transparent;
+      border-right-color: transparent;
+      border-top-color: var(--litebox-description-bg);
+      border-right-color: var(--litebox-description-bg);
+      transition: all var(--animation-duration) allow-discrete;
+
+      svg {
+        transition: transform var(--animation-duration);
+      }
+    }
+
+    .hidden-descriptions {
+
+      .litebox-description-content {
+        /* padding-block: 0; */
+        opacity: 0;
+        transform: translateY(100%);
+      }
+
+      .litebox-description-close {
+        border-top-color: var(--litebox-component-border-color);
+        border-right-color: var(--litebox-component-border-color);
+        border-bottom-color: var(--litebox-component-border-color);
+        border-radius: var(--litebox-component-border-radius);
+        padding-block: 1rem;
+        bottom: 0%;
+
+        svg {
+          transform: rotate(45deg);
+        }
+      }
+    }
+
     ul, li {
       margin: 0;
       padding: 0;
@@ -65,6 +167,11 @@
         display: grid;
       }
     }
+
+    .litebox-item-content {
+      display: grid;
+      place-items: center;
+    }
   }
 
   & .litebox-controls {
@@ -77,34 +184,18 @@
     width: 100vw;
     box-sizing: border-box;
 
-    button {
-      background: rgba(0, 0, 0, 0.5);
-      border: none;
-      color: white;
-      font-size: 1.5rem;
-      padding: 0.5rem 1rem;
-      cursor: pointer;
-      border-radius: 0.25rem;
-      display: inline-flex;
-      align-items: center;
-
-
-      & svg {
-        stroke: white;
-        fill: white;
-      }
-      &.litebox-next svg {
-        transform: rotate(180deg);
-      }
+    .litebox-next svg {
+      transform: rotate(180deg);
     }
 
     .litebox-index-display {
-      color: white;
+      background-color: var(--litebox-component-bg);
+      border-radius: var(--litebox-component-border-radius);
+      border: var(--litebox-component-border);
+      color: var(--litebox-component-text-color);
       font-size: 1rem;
       align-self: center;
-      background-color: rgba(0, 0, 0, 0.5);
       padding: 0.7rem 1rem;
-      border-radius: 0.25rem;
       margin-right: auto;
     }
   }
